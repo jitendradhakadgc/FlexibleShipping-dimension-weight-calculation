@@ -1,15 +1,16 @@
 <?php
 
 add_filter( 'flexible-shipping/shipping-method/rules-calculation-function', 'gc_override_shipping_cost', 10, 2 );
-function gc_override_shipping_cost($calculated_cost, $object){ 
-	//update_option( 'gc_cart_price', $calculated_cost );
-	
+function gc_override_shipping_cost($calculated_cost, $object){
 	return 'gc_override_price';
 }
-function gc_override_price($var1, $var2){
+//add_shortcode( 'gc_test_code', 'gc_override_price' );
+function gc_override_price( $calculated_cost, $rule_cost ){
 	$cost_per_order='';
 	// Get an instance of the WooCommerce cart
 	if ( isset( WC()->cart ) && is_object( WC()->cart ) ) {
+		$dimension_unit = get_option( 'woocommerce_dimension_unit' );
+		$weight_unit    = get_option( 'woocommerce_weight_unit' );
 		$cart_instance = WC()->cart;
 		// Get cart contents
 		$cart_contents = $cart_instance->get_cart();
@@ -25,9 +26,9 @@ function gc_override_price($var1, $var2){
 					$qty = $cart_item['quantity'];
 					$volumetric_weight = 0.0;
 					if($product->get_length() && $product->get_width() && $product->get_height()){
-						$length            = ( wc_get_dimension( str_replace( ",", ".", $product->get_length() ), 'cm', $dimension_unit ) );
-						$width             = ( wc_get_dimension( str_replace( ",", ".", $product->get_width() ), 'cm', $dimension_unit ) );
-						$height            = ( wc_get_dimension( str_replace( ",", ".", $product->get_height() ), 'cm', $dimension_unit ) );
+						$length            = wc_get_dimension( str_replace( ",", ".", $product->get_length() ), 'cm', $dimension_unit );
+						$width             = wc_get_dimension( str_replace( ",", ".", $product->get_width() ), 'cm', $dimension_unit );
+						$height            = wc_get_dimension( str_replace( ",", ".", $product->get_height() ), 'cm', $dimension_unit );
 						$volumetric_weight = ( $length * $width * $height ) / 5000 * $qty;
 						$weight = 0.0;
 						if ( $product->get_weight() ) {
@@ -35,6 +36,7 @@ function gc_override_price($var1, $var2){
 						}
 						// Calculate the maximum weight
 						$max_weight = max( $max_weight, max( $volumetric_weight, $weight ) );
+						
 					}
 				}
 			}
@@ -51,10 +53,15 @@ function gc_override_price($var1, $var2){
 			$method_rules = $flexible_shipping_rate['method_rules'];
 			foreach($method_rules as $method_rule){
 				// Apply cost_per_order based on the maximum weight of a single product
+				$max_weight = ceil($max_weight * 10) / 10;
+				//echo '<br>';
 				if ($max_weight >= $method_rule['conditions'][0]['min'] && $max_weight <= $method_rule['conditions'][0]['max']) {
 					// Apply cost_per_order based on the conditions
 					$cost_per_order = $method_rule['cost_per_order']; // This will be applied based on the conditions
 					break 2;
+				}
+				else{
+
 				}
 			}
 		}
